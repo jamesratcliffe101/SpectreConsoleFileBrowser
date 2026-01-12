@@ -6,20 +6,30 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
-// rename DisplayIcons to canDisplayIcons
 // make attributes priate instead of all being public
-// since the 
+// Can't select drive on linux currently
 
 namespace FileBrowser
 {
+    internal static class Icon
+    {
+        public const string upArrow = ":upwards_button:";
+        public const string ok = ":ok_button:";
+        public const string plus = ":plus:";
+        public const string disk = ":computer_disk:";
+    }
+    
     public class Browser
     {
         public bool CanDisplayIcons { get; set; } = true;
-        private bool IsWindows { get; }
+        private bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        private string[]? Drives { get; set; }
+
+        private string record = "";
+
         public int PageSize { get; set; } = 15;
         public bool CanCreateFolder { get; set; } = true;
         public string ActualFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        //private string? SelectedFile { get; set; }
         public string LevelUpText { get; set; } = "Go to upper level";
         public string ActualFolderText { get; set; } = "Selected Folder";
         public string MoreChoicesText { get; set; } = "Use arrows Up and Down to select";
@@ -28,21 +38,57 @@ namespace FileBrowser
         public string SelectFolderText { get; set; } = "Select Folder";
         public string SelectDriveText { get; set; } = "Select Drive";
         public string SelectActualText { get; set; } = "Select Actual Folder";
-        private string[]? Drives { get; set; }
+
+        private Dictionary<string, Action> SelectionList = new ();
 
         public Browser()
         {
-            IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+            
         }
 
-        public string GetPath(string ActualFolder, bool SelectFile)
+        /// <summary>
+        /// Draws the file browser content to the screen using SpectreConsole
+        /// </summary>
+        private void DisplayFileBrower()
+        {
+            
+        }
+
+        private string FormatEntry(string icon, string text)
+        {
+            return $"{(CanDisplayIcons ? icon : "")}[green]{text}[/]";
+        }
+
+        /// <summary>
+        /// Asks for folder name and creates a new folder
+        /// </summary>
+        private void createNewFolder()
+        {
+            string folderName = AnsiConsole.Ask<string>("[blue]" + CreateNewText + ": [/]");
+            if (folderName != null)
+            {
+                try
+                {
+                    Directory.CreateDirectory(folderName);
+                    record = Path.Combine(ActualFolder, folderName);
+                }
+                catch (Exception ex)
+                {
+                    AnsiConsole.WriteLine("[red]Error: [/]" + ex.Message);
+                }
+            }
+        }
+
+        private string GetPath(string startingPath, bool SelectFile)
         {
             string lastFolder = ActualFolder;
             while (true)
             {
                 string headerText = SelectFile ? SelectFileText : SelectFolderText;
-                string[] directoriesInFolder;
+                string[] directoriesList;
                 Directory.SetCurrentDirectory(ActualFolder);
+
+                DirectoryInfo? ParentDir = new DirectoryInfo(ActualFolder).Parent;
 
                 AnsiConsole.Clear();
                 AnsiConsole.WriteLine();
@@ -51,67 +97,47 @@ namespace FileBrowser
 
                 AnsiConsole.WriteLine();
                 AnsiConsole.Markup($"[b][Yellow]{ActualFolderText}: [/][/]");
-                var path = new TextPath(ActualFolder.ToString());
-                path.RootStyle = new Style(foreground: Color.Green);
-                path.SeparatorStyle = new Style(foreground: Color.Green);
-                path.StemStyle = new Style(foreground: Color.Blue);
-                path.LeafStyle = new Style(foreground: Color.Yellow);
-                AnsiConsole.Write(path);
+                var DirectoryPath = new TextPath(ActualFolder.ToString());
+                DirectoryPath.RootStyle = new Style(foreground: Color.Green);
+                DirectoryPath.SeparatorStyle = new Style(foreground: Color.Green);
+                DirectoryPath.StemStyle = new Style(foreground: Color.Blue);
+                DirectoryPath.LeafStyle = new Style(foreground: Color.Yellow);
+                AnsiConsole.Write(DirectoryPath);
                 AnsiConsole.WriteLine();
 
                 Dictionary<string, string> folders = new Dictionary<string, string>();
                 // get list of drives
+                // key = the file/folder name
+                // element = path to file/folder
 
-                try
-                {
-                    directoriesInFolder = Directory.GetDirectories(Directory.GetCurrentDirectory());
-                    lastFolder = ActualFolder;
-                }
-                catch
-                {
-                    if (ActualFolder == lastFolder) ActualFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    else ActualFolder = lastFolder;
-                    Directory.SetCurrentDirectory(ActualFolder);
-                    directoriesInFolder = Directory.GetDirectories(Directory.GetCurrentDirectory());
-                }
+                // get content in directory
+                directoriesList = Directory.GetDirectories(Directory.GetCurrentDirectory());
+                lastFolder = ActualFolder;
 
                 if (IsWindows)
                 {
-                    if (CanDisplayIcons)
-                        folders.Add("[green]:computer_disk: " + SelectDriveText + "[/]", "/////");
-                    else
-                        folders.Add("[green]" + SelectDriveText + "[/]", "/////");
+                    folders.Add(FormatEntry(":computer_disk:", SelectDriveText), "/////");
                 }
-                try
+
+                if (ParentDir is not null)
                 {
-                    DirectoryInfo? Parent = new DirectoryInfo(ActualFolder).Parent;
-                    if (Parent is not null)
-                    {
-                        if (CanDisplayIcons)
-                            folders.Add("[green]:upwards_button: " + LevelUpText + "[/]", Parent.FullName);
-                        else
-                            folders.Add("[green]" + LevelUpText + "[/]", Parent.FullName);
-                    }
+                    folders.Add(FormatEntry(":upwards_button: ", LevelUpText), ParentDir.FullName);
                 }
-                catch { }
+
                 if (!SelectFile)
                 {
-                    if (CanDisplayIcons)
-                        folders.Add(":ok_button: [green]" + SelectActualText + "[/]", Directory.GetCurrentDirectory());
-                    else
-                        folders.Add("[green]" + SelectActualText + "[/]", Directory.GetCurrentDirectory());
+                    folders.Add(FormatEntry(":ok_button: ", SelectActualText), Directory.GetCurrentDirectory());
                 }
+
                 if (CanCreateFolder)
                 {
-                    if (CanDisplayIcons)
-                        folders.Add("[green]:plus: " + CreateNewText + "[/]", "///new");
-                    else
-                        folders.Add("[green]" + CreateNewText + "[/]", "///new");
+                    folders.Add(FormatEntry(":plus: ", CreateNewText), "///new");
                 }
-                foreach (var d in directoriesInFolder)
+
+
+                foreach (string d in directoriesList)
                 {
-                    int cut = 0;
-                    if (new DirectoryInfo(ActualFolder).Parent != null) cut = 1;
+                    int cut = (ParentDir is not null) ? 1 : 0;
                     string FolderName = d.Substring((ActualFolder.Length) + cut);
                     string FolderPath = d;
                     if (CanDisplayIcons) folders.Add(":file_folder: " + FolderName, FolderPath);
@@ -139,7 +165,7 @@ namespace FileBrowser
                 );
                 lastFolder = ActualFolder;
 
-                string record = folders.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault() 
+                record = folders.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault() 
                                 ?? throw new NullReferenceException("Selection is null");
 
                 if (record == "/////")
@@ -149,20 +175,7 @@ namespace FileBrowser
                 }
                 if (record == "///new")
                 {
-                    string folderName = AnsiConsole.Ask<string>("[blue]" + CreateNewText + ": [/]");
-                    if (folderName != null)
-                    {
-                        try
-                        {
-                            Directory.CreateDirectory(folderName);
-                            string newFolder = Path.Combine(ActualFolder, folderName);
-                            record = newFolder;
-                        }
-                        catch (Exception ex)
-                        {
-                            AnsiConsole.WriteLine("[red]Error: [/]" + ex.Message);
-                        }
-                    }
+                    createNewFolder();
                 }
                 string responseType;
                 if (Directory.Exists(record)) responseType = "Directory";
@@ -173,9 +186,9 @@ namespace FileBrowser
                 if (responseType == "Directory")
                     try
                     {
-                        ActualFolder = record;
+                        ActualFolder = record; // How is this able to fail?
                     }
-                    catch
+                    catch // what are we catching!?
                     {
                         AnsiConsole.WriteLine("[red]You have no access to this folder[/]");
                     }
