@@ -7,12 +7,13 @@ using System.Threading.Tasks;
 
 // rename DisplayIcons to canDisplayIcons
 // make attributes priate instead of all being public
+// since the 
 
 namespace FileBrowser
 {
     public class Browser
     {
-        public bool DisplayIcons { get; set; } = true;
+        public bool CanDisplayIcons { get; set; } = true;
         public bool IsWindows { get; }
         public int PageSize { get; set; } = 15;
         public bool CanCreateFolder { get; set; } = true;
@@ -79,7 +80,7 @@ namespace FileBrowser
 
                 if (IsWindows)
                 {
-                    if (DisplayIcons)
+                    if (CanDisplayIcons)
                         folders.Add("[green]:computer_disk: " + SelectDriveText + "[/]", "/////");
                     else
                         folders.Add("[green]" + SelectDriveText + "[/]", "/////");
@@ -89,7 +90,7 @@ namespace FileBrowser
                     DirectoryInfo? Parent = new DirectoryInfo(ActualFolder).Parent;
                     if (Parent is not null)
                     {
-                        if (DisplayIcons)
+                        if (CanDisplayIcons)
                             folders.Add("[green]:upwards_button: " + LevelUpText + "[/]", Parent.FullName);
                         else
                             folders.Add("[green]" + LevelUpText + "[/]", Parent.FullName);
@@ -98,14 +99,14 @@ namespace FileBrowser
                 catch { }
                 if (!SelectFile)
                 {
-                    if (DisplayIcons)
+                    if (CanDisplayIcons)
                         folders.Add(":ok_button: [green]" + SelectActualText + "[/]", Directory.GetCurrentDirectory());
                     else
                         folders.Add("[green]" + SelectActualText + "[/]", Directory.GetCurrentDirectory());
                 }
                 if (CanCreateFolder)
                 {
-                    if (DisplayIcons)
+                    if (CanDisplayIcons)
                         folders.Add("[green]:plus: " + CreateNewText + "[/]", "///new");
                     else
                         folders.Add("[green]" + CreateNewText + "[/]", "///new");
@@ -116,7 +117,7 @@ namespace FileBrowser
                     if (new DirectoryInfo(ActualFolder).Parent != null) cut = 1;
                     string FolderName = d.Substring((ActualFolder.Length) + cut);
                     string FolderPath = d;
-                    if (DisplayIcons) folders.Add(":file_folder: " + FolderName, FolderPath);
+                    if (CanDisplayIcons) folders.Add(":file_folder: " + FolderName, FolderPath);
                     else folders.Add(FolderName, FolderPath);
                 }
 
@@ -126,7 +127,7 @@ namespace FileBrowser
                     foreach (string file in fileList)
                     {
                         string result = Path.GetFileName(file);
-                        if (DisplayIcons) folders.Add(":abacus: " + result, file);
+                        if (CanDisplayIcons) folders.Add(":abacus: " + result, file);
                         else folders.Add(result, file);
                     }
                 }
@@ -212,7 +213,7 @@ namespace FileBrowser
             Dictionary<string, string> result = new Dictionary<string, string>();
             foreach (string drive in Drives)
             {
-                if (DisplayIcons)
+                if (CanDisplayIcons)
                     result.Add(":computer_disk: " + drive, drive);
                 else
                     result.Add(drive, drive);
