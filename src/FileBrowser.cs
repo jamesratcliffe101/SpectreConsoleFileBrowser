@@ -15,11 +15,11 @@ namespace FileBrowser
     public class Browser
     {
         public bool CanDisplayIcons { get; set; } = true;
-        public bool IsWindows { get; }
+        private bool IsWindows { get; }
         public int PageSize { get; set; } = 15;
         public bool CanCreateFolder { get; set; } = true;
         public string ActualFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        public string? SelectedFile { get; set; }
+        //private string? SelectedFile { get; set; }
         public string LevelUpText { get; set; } = "Go to upper level";
         public string ActualFolderText { get; set; } = "Selected Folder";
         public string MoreChoicesText { get; set; } = "Use arrows Up and Down to select";
@@ -28,13 +28,11 @@ namespace FileBrowser
         public string SelectFolderText { get; set; } = "Select Folder";
         public string SelectDriveText { get; set; } = "Select Drive";
         public string SelectActualText { get; set; } = "Select Actual Folder";
-        public string[]? Drives { get; set; }
-        public string lastFolder { get; set; }
+        private string[]? Drives { get; set; }
 
         public Browser()
         {
             IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-            lastFolder = ActualFolder;
         }
 
         public string GetPath(string ActualFolder, bool SelectFile)
