@@ -34,7 +34,7 @@ namespace FileBrowser
             lastFolder = ActualFolder;
         }
 
-        public async Task<string> GetPath(string ActualFolder, bool SelectFile)
+        public string GetPath(string ActualFolder, bool SelectFile)
         {
             string lastFolder = ActualFolder;
             while (true)
@@ -180,25 +180,24 @@ namespace FileBrowser
             }
         }
 
-        public async Task<string> GetFilePath(string ActualFolder)
+        public string GetFilePath(string ActualFolder)
         {
-            return await GetPath(ActualFolder, true);
+            return GetPath(ActualFolder, true);
         }
 
-        public async Task<string> GetFilePath()
+        public string GetFilePath()
         {
-            return await GetPath(ActualFolder, true);
+            return GetPath(ActualFolder, true);
         }
 
-        public async Task<string> GetFolderPath(string ActualFolder)
+        public  string GetFolderPath(string ActualFolder)
         {
-            return await
-                GetPath(ActualFolder, false);
+            return GetPath(ActualFolder, false);
         }
 
-        public async Task<string> GetFolderPath()
+        public string GetFolderPath()
         {
-            return await GetPath(ActualFolder, false);
+            return GetPath(ActualFolder, false);
         }
 
         private string SelectDrive()
