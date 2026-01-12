@@ -121,7 +121,6 @@ namespace FileBrowser
                     var fileList = Directory.GetFiles(ActualFolder);
                     foreach (string file in fileList)
                     {
-                        string fileName;
                         string result = Path.GetFileName(file);
                         if (DisplayIcons) folders.Add(":abacus: " + result, file);
                         else folders.Add(result, file);
