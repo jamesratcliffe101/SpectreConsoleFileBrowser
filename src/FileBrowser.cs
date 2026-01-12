@@ -5,6 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
+// rename DisplayIcons to canDisplayIcons
+// make attributes priate instead of all being public
+
 namespace FileBrowser
 {
     public class Browser
@@ -14,7 +17,7 @@ namespace FileBrowser
         public int PageSize { get; set; } = 15;
         public bool CanCreateFolder { get; set; } = true;
         public string ActualFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        public string SelectedFile { get; set; }
+        public string? SelectedFile { get; set; }
         public string LevelUpText { get; set; } = "Go to upper level";
         public string ActualFolderText { get; set; } = "Selected Folder";
         public string MoreChoicesText { get; set; } = "Use arrows Up and Down to select";
@@ -23,7 +26,7 @@ namespace FileBrowser
         public string SelectFolderText { get; set; } = "Select Folder";
         public string SelectDriveText { get; set; } = "Select Drive";
         public string SelectActualText { get; set; } = "Select Actual Folder";
-        public string[] Drives { get; set; }
+        public string[]? Drives { get; set; }
         public string lastFolder { get; set; }
 
         public Browser()
@@ -83,12 +86,13 @@ namespace FileBrowser
                 }
                 try
                 {
-                    if (new DirectoryInfo(ActualFolder).Parent != null)
+                    DirectoryInfo? Parent = new DirectoryInfo(ActualFolder).Parent;
+                    if (Parent is not null)
                     {
                         if (DisplayIcons)
-                            folders.Add("[green]:upwards_button: " + LevelUpText + "[/]", new DirectoryInfo(ActualFolder).Parent.FullName);
+                            folders.Add("[green]:upwards_button: " + LevelUpText + "[/]", Parent.FullName);
                         else
-                            folders.Add("[green]" + LevelUpText + "[/]", new DirectoryInfo(ActualFolder).Parent.FullName);
+                            folders.Add("[green]" + LevelUpText + "[/]", Parent.FullName);
                     }
                 }
                 catch { }
@@ -136,7 +140,10 @@ namespace FileBrowser
                     .AddChoices(folders.Keys)
                 );
                 lastFolder = ActualFolder;
-                var record = folders.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault();
+
+                string record = folders.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault() 
+                                ?? throw new NullReferenceException("Selection is null");
+
                 if (record == "/////")
                 {
                     record = SelectDrive();
@@ -217,14 +224,16 @@ namespace FileBrowser
 
             AnsiConsole.WriteLine();
             string title = SelectDriveText;
-            var selected = AnsiConsole.Prompt(
+            string selected = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title($"[green]{title}:[/]")
                 .PageSize(PageSize)
                 .MoreChoicesText($"[grey]{MoreChoicesText}[/]")
                 .AddChoices(result.Keys)
             );
-            var record = result.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault();
+            // record returns the selected drive?
+            string record = result.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault()
+                            ?? throw new NullReferenceException("Selection is null");
             return record;
         }
     }

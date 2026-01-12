@@ -15,6 +15,7 @@
     <PackageTags>Spectre.Console; FileSelector; File Browser; File Selector; Folder selector;</PackageTags>
     <PackageReleaseNotes>First package release - hope someone will find it helpful</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
