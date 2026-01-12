@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 // rename DisplayIcons to canDisplayIcons
@@ -32,9 +33,7 @@ namespace FileBrowser
 
         public Browser()
         {
-            string OS = Environment.OSVersion.Platform.ToString();
-            if (OS.Substring(0, 3).ToLower() == "win")
-                IsWindows = true;
+            IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
             lastFolder = ActualFolder;
         }
 
