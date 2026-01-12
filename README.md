@@ -1,6 +1,6 @@
 # File and Folder selector for 	[Spectre.Console](https://github.com/spectreconsole)
 
-## Spectre.Console is the best - this is my humble try to make it even more usefull.
+## Updated for dotnet 10.0
 
 ![preview](preview.jpg)
 
