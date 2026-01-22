@@ -9,243 +9,248 @@ using System.Threading.Tasks;
 // make attributes priate instead of all being public
 // Can't select drive on linux currently
 
-namespace FileBrowser
-{
-    internal static class Icon
-    {
-        public const string upArrow = ":upwards_button:";
-        public const string ok = ":ok_button:";
-        public const string plus = ":plus:";
-        public const string disk = ":computer_disk:";
-    }
-    
+namespace FileBrowser;  
+
     public class Browser
     {
-        public bool CanDisplayIcons { get; set; } = true;
-        private bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-        private string[]? Drives { get; set; }
+    public bool _canDisplayIcons { get; set; } = true;
+    private bool _isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+    private Dictionary<string, string> _selectionDict = new ();
+    private string[]? _drives { get; set; }
+    private string _record = "";
 
-        private string record = "";
+    private BrowserUI browserUI;
+    private BrowserController browserController;
 
-        public int PageSize { get; set; } = 15;
-        public bool CanCreateFolder { get; set; } = true;
-        public string ActualFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        public string LevelUpText { get; set; } = "Go to upper level";
-        public string ActualFolderText { get; set; } = "Selected Folder";
-        public string MoreChoicesText { get; set; } = "Use arrows Up and Down to select";
-        public string CreateNewText { get; set; } = "Create new folder";
-        public string SelectFileText { get; set; } = "Select File";
-        public string SelectFolderText { get; set; } = "Select Folder";
-        public string SelectDriveText { get; set; } = "Select Drive";
-        public string SelectActualText { get; set; } = "Select Actual Folder";
+    public int PageSize { get; set; } = 15;
+    public bool CanCreateFolder { get; set; } = true;
+    public string ActualFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    public string LevelUpText { get; set; } = "Go to upper level";
+    public string ActualFolderText { get; set; } = "Selected Folder";
+    public string MoreChoicesText { get; set; } = "Use arrows Up and Down to select";
+    public string CreateNewText { get; set; } = "Create new folder";
+    public string SelectFileText { get; set; } = "Select File";
+    public string SelectFolderText { get; set; } = "Select Folder";
+    public string SelectDriveText { get; set; } = "Select Drive";
+    public string SelectActualText { get; set; } = "Select Actual Folder";
 
-        private Dictionary<string, Action> SelectionList = new ();
+    public Browser()
+    {
+        browserController = new BrowserController();
+        browserUI = new BrowserUI();
+    }
+    private string GetPath(string startingPath, bool canIncludeFiles)
+    {
+        ActualFolder = startingPath;
+        string headerText = canIncludeFiles ? SelectFileText : SelectFolderText;
 
-        public Browser()
-        {
+        while (true)
+        {  
+            Directory.SetCurrentDirectory(ActualFolder);
+            DirectoryInfo? ParentDir = new DirectoryInfo(ActualFolder).Parent;
+
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string[] directoriesList =  Directory.GetDirectories(currentDirectory);
             
-        }
-
-        /// <summary>
-        /// Draws the file browser content to the screen using SpectreConsole
-        /// </summary>
-        private void DisplayFileBrower()
-        {
-            
-        }
-
-        private string FormatEntry(string icon, string text)
-        {
-            return $"{(CanDisplayIcons ? icon : "")}[green]{text}[/]";
-        }
-
-        /// <summary>
-        /// Asks for folder name and creates a new folder
-        /// </summary>
-        private void createNewFolder()
-        {
-            string folderName = AnsiConsole.Ask<string>("[blue]" + CreateNewText + ": [/]");
-            if (folderName != null)
-            {
-                try
-                {
-                    Directory.CreateDirectory(folderName);
-                    record = Path.Combine(ActualFolder, folderName);
-                }
-                catch (Exception ex)
-                {
-                    AnsiConsole.WriteLine("[red]Error: [/]" + ex.Message);
-                }
-            }
-        }
-
-        private string GetPath(string startingPath, bool SelectFile)
-        {
-            string lastFolder = ActualFolder;
-            while (true)
-            {
-                string headerText = SelectFile ? SelectFileText : SelectFolderText;
-                string[] directoriesList;
-                Directory.SetCurrentDirectory(ActualFolder);
-
-                DirectoryInfo? ParentDir = new DirectoryInfo(ActualFolder).Parent;
-
-                AnsiConsole.Clear();
-                AnsiConsole.WriteLine();
-                var rule = new Rule($"[b][green]{headerText}[/][/]").Centered();
-                AnsiConsole.Write(rule);
-
-                AnsiConsole.WriteLine();
-                AnsiConsole.Markup($"[b][Yellow]{ActualFolderText}: [/][/]");
-                var DirectoryPath = new TextPath(ActualFolder.ToString());
-                DirectoryPath.RootStyle = new Style(foreground: Color.Green);
-                DirectoryPath.SeparatorStyle = new Style(foreground: Color.Green);
-                DirectoryPath.StemStyle = new Style(foreground: Color.Blue);
-                DirectoryPath.LeafStyle = new Style(foreground: Color.Yellow);
-                AnsiConsole.Write(DirectoryPath);
-                AnsiConsole.WriteLine();
-
-                Dictionary<string, string> folders = new Dictionary<string, string>();
-                // get list of drives
-                // key = the file/folder name
-                // element = path to file/folder
-
-                // get content in directory
-                directoriesList = Directory.GetDirectories(Directory.GetCurrentDirectory());
-                lastFolder = ActualFolder;
-
-                if (IsWindows)
-                {
-                    folders.Add(FormatEntry(":computer_disk:", SelectDriveText), "/////");
-                }
-
-                if (ParentDir is not null)
-                {
-                    folders.Add(FormatEntry(":upwards_button: ", LevelUpText), ParentDir.FullName);
-                }
-
-                if (!SelectFile)
-                {
-                    folders.Add(FormatEntry(":ok_button: ", SelectActualText), Directory.GetCurrentDirectory());
-                }
-
-                if (CanCreateFolder)
-                {
-                    folders.Add(FormatEntry(":plus: ", CreateNewText), "///new");
-                }
-
-
-                foreach (string d in directoriesList)
-                {
-                    int cut = (ParentDir is not null) ? 1 : 0;
-                    string FolderName = d.Substring((ActualFolder.Length) + cut);
-                    string FolderPath = d;
-                    if (CanDisplayIcons) folders.Add(":file_folder: " + FolderName, FolderPath);
-                    else folders.Add(FolderName, FolderPath);
-                }
-
-                if (SelectFile)
-                {
-                    var fileList = Directory.GetFiles(ActualFolder);
-                    foreach (string file in fileList)
-                    {
-                        string result = Path.GetFileName(file);
-                        if (CanDisplayIcons) folders.Add(":abacus: " + result, file);
-                        else folders.Add(result, file);
-                    }
-                }
-                // We got two sets of lists list files and list folders
-                string title = SelectFile ? SelectFileText : SelectFolderText;
-                var selected = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title($"[green]{title}:[/]")
-                    .PageSize(PageSize)
-                    .MoreChoicesText($"[grey]{MoreChoicesText}[/]")
-                    .AddChoices(folders.Keys)
-                );
-                lastFolder = ActualFolder;
-
-                record = folders.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault() 
-                                ?? throw new NullReferenceException("Selection is null");
-
-                if (record == "/////")
-                {
-                    record = SelectDrive();
-                    ActualFolder = record;
-                }
-                if (record == "///new")
-                {
-                    createNewFolder();
-                }
-                string responseType;
-                if (Directory.Exists(record)) responseType = "Directory";
-                else responseType = "File";
-
-                if (record == Directory.GetCurrentDirectory())
-                    return ActualFolder;
-                if (responseType == "Directory")
-                    try
-                    {
-                        ActualFolder = record; // How is this able to fail?
-                    }
-                    catch // what are we catching!?
-                    {
-                        AnsiConsole.WriteLine("[red]You have no access to this folder[/]");
-                    }
-                else
-                    return record;
-            }
-        }
-
-        public string GetFilePath(string ActualFolder)
-        {
-            return GetPath(ActualFolder, true);
-        }
-
-        public string GetFilePath()
-        {
-            return GetPath(ActualFolder, true);
-        }
-
-        public  string GetFolderPath(string ActualFolder)
-        {
-            return GetPath(ActualFolder, false);
-        }
-
-        public string GetFolderPath()
-        {
-            return GetPath(ActualFolder, false);
-        }
-
-        private string SelectDrive()
-        {
-            Drives = Directory.GetLogicalDrives();
-            Dictionary<string, string> result = new Dictionary<string, string>();
-            foreach (string drive in Drives)
-            {
-                if (CanDisplayIcons)
-                    result.Add(":computer_disk: " + drive, drive);
-                else
-                    result.Add(drive, drive);
-            }
             AnsiConsole.Clear();
             AnsiConsole.WriteLine();
-            var rule = new Rule($"[b][green]{SelectDriveText}[/][/]").Centered();
-            AnsiConsole.Write(rule);
 
+            var rule = new Rule($"[b][green]{headerText}[/][/]").Centered();
+
+            AnsiConsole.Write(rule);
             AnsiConsole.WriteLine();
-            string title = SelectDriveText;
-            string selected = AnsiConsole.Prompt(
+            AnsiConsole.Markup($"[b][Yellow]{ActualFolderText}: [/][/]");
+
+            var DirectoryPath = new TextPath(ActualFolder.ToString());
+
+            DirectoryPath.RootStyle = new Style(foreground: Color.Green);
+            DirectoryPath.SeparatorStyle = new Style(foreground: Color.Green);
+            DirectoryPath.StemStyle = new Style(foreground: Color.Blue);
+            DirectoryPath.LeafStyle = new Style(foreground: Color.Yellow);
+            AnsiConsole.Write(DirectoryPath);
+            AnsiConsole.WriteLine();
+
+            // get list of drives
+            // key = the file/folder name
+            // element = path to file/folder
+
+            if (_isWindows)
+            {
+                _selectionDict.Add(FormatSelectorEntry(":computer_disk:", SelectDriveText), "/////");
+            }
+
+            if (ParentDir is not null)
+            {
+                _selectionDict.Add(FormatSelectorEntry(":upwards_button: ", LevelUpText), ParentDir.FullName);
+            }
+
+            if (!canIncludeFiles)
+            {
+                _selectionDict.Add(FormatSelectorEntry(":ok_button: ", SelectActualText), currentDirectory);
+            }
+
+            if (CanCreateFolder)
+            {
+                _selectionDict.Add(FormatSelectorEntry(":plus: ", CreateNewText), "///new");
+            }
+
+            foreach (string d in directoriesList)
+            {
+                int cut = (ParentDir is not null) ? 1 : 0;
+                string FolderName = d.Substring((ActualFolder.Length) + cut);
+                string FolderPath = d;
+
+                _selectionDict.Add(FormatItemEntry(":file_folder:", FolderName), FolderPath);
+            }
+
+            if (canIncludeFiles)
+            {
+                var fileList = Directory.GetFiles(ActualFolder);
+                foreach (string file in fileList)
+                {
+                    string result = Path.GetFileName(file);
+
+                    _selectionDict.Add(FormatItemEntry(":abacus:", result), file);
+                }
+            }
+
+            // We got two sets of lists list files and list folders
+            string title = canIncludeFiles ? SelectFileText : SelectFolderText;
+
+            string userSelection = GetSelectedFolder(_selectionDict, title);
+            _record = _selectionDict.Where(s => s.Key == userSelection).Select(s => s.Value).FirstOrDefault() 
+                            ?? throw new NullReferenceException("Selection is null");
+
+            if (_record == "/////")
+            {
+                _record = SelectDrive();
+                ActualFolder = _record;
+            }
+
+            if (_record == "///new")
+            {
+                CreateNewFolder();
+            }
+
+            if (_record == currentDirectory)
+                return ActualFolder;
+
+            if (Directory.Exists(_record))
+            {
+                ActualFolder = _record; // How is this able to fail?
+            }
+
+            else 
+            {
+                return _record;
+            }; 
+        }
+    }
+    public string GetFilePath(string ActualFolder)
+    {
+        return GetPath(ActualFolder, true);
+    }
+    public string GetFilePath()
+    {
+        return GetPath(ActualFolder, true);
+    }
+    public  string GetFolderPath(string ActualFolder)
+    {
+        return GetPath(ActualFolder, false);
+    }
+    public string GetFolderPath()
+    {
+        return GetPath(ActualFolder, false);
+    }
+    private string SelectDrive()
+    {
+        _drives = Directory.GetLogicalDrives();
+        Dictionary<string, string> listOfDrives = new Dictionary<string, string>();
+        foreach (string drive in _drives)
+        {
+            if (_canDisplayIcons)
+                listOfDrives.Add(":computer_disk: " + drive, drive);
+            else
+                listOfDrives.Add(drive, drive);
+        }
+        
+        string selected = GetSelectedFolder(listOfDrives, SelectDriveText);
+        // record returns the selected drive?
+        _record = listOfDrives.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault()
+                        ?? throw new NullReferenceException("Selection is null");
+        return _record;
+    }
+
+
+    /// <summary>
+    /// Draws the file browser content to the screen using SpectreConsole
+    /// </summary>
+    private string GetSelectedFolder(Dictionary<string, string> itemList, string selectorTitle)
+    {   
+        AnsiConsole.Clear();
+        AnsiConsole.WriteLine();
+        Rule rule = new Rule($"[b][green]{selectorTitle}[/][/]").Centered();
+        AnsiConsole.Write(rule);
+        AnsiConsole.WriteLine();
+        return AnsiConsole.Prompt(
             new SelectionPrompt<string>()
-                .Title($"[green]{title}:[/]")
+                .Title($"[green]{selectorTitle}:[/]")
                 .PageSize(PageSize)
                 .MoreChoicesText($"[grey]{MoreChoicesText}[/]")
-                .AddChoices(result.Keys)
-            );
-            // record returns the selected drive?
-            string record = result.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault()
+                .AddChoices(itemList.Keys)
+        );
+    }
+
+    private void ProcessSelection(string selectedItem)
+    {
+        _record = _selectionDict.Where(s => s.Key == selectedItem).Select(s => s.Value).FirstOrDefault() 
                             ?? throw new NullReferenceException("Selection is null");
-            return record;
+
+
+    }
+
+
+    /// <summary>
+    /// Creates formatted string for optional entries in folder selector list like
+    /// "go back" or "create folder"
+    /// </summary>
+    /// <param name="icon"></param>
+    /// <param name="text"></param>
+    /// <returns></returns>
+    private string FormatSelectorEntry(string icon, string text)
+    {
+        return $"{(_canDisplayIcons ? icon : "")}[green]{text}[/]";
+    }
+
+    /// <summary>
+    /// Creates formatted string for folders and files
+    /// </summary>
+    /// <param name="icon"></param>
+    /// <param name="text"></param>
+    /// <returns></returns>
+    private string FormatItemEntry(string icon, string text)
+    {
+        return $"{(_canDisplayIcons ? icon : "")}{text}";
+    }
+ 
+        
+    /// <summary>
+    /// Asks user for folder name then creates a new folder with given name
+    /// </summary>
+    private void CreateNewFolder()
+    {
+        string folderName = AnsiConsole.Ask<string>("[blue]" + CreateNewText + ": [/]");
+        if (folderName != null)
+        {
+            try
+            {
+                Directory.CreateDirectory(folderName);
+                _record = Path.Combine(ActualFolder, folderName);
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.WriteLine("[red]Error: [/]" + ex.Message);
+            }
         }
     }
 }
