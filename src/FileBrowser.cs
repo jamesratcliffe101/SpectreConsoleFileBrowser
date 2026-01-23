@@ -11,13 +11,33 @@ using System.Threading;
 
 namespace FileBrowser;  
 
-    public class Browser
+public enum PromptType
+{
+    SETTING,
+    FOLDER,
+    FILE
+}
+
+public class UserPromptItem
+{
+    public PromptType promptType;
+    public string text;
+    public string? directory;
+
+    public UserPromptItem(PromptType type, string text, string? directory=null)
     {
+        this.promptType = type;
+        this.text = text;
+        this.directory = directory;
+    }
+}
+
+public class Browser
+{
     public bool _canDisplayIcons { get; set; } = true;
     private bool _isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-    private Dictionary<string, string> _selectionDict = new ();
-    private string[] _selectableFilesAndFolder;
-    private string[] _selectableSettings;
+    private Dictionary<string, string> _selectionDict = [];
+    private List<UserPromptItem> SelectableItems = [];
     private string[]? _drives { get; set; }
     private string _record = "";
 
@@ -85,24 +105,29 @@ namespace FileBrowser;
             // key = the file/folder name
             // element = path to file/folder
 
+            string temp; // not great, needs improving
             if (_isWindows)
             {
-                _selectionDict.Add(FormatSelectorEntry(":computer_disk:", SelectDriveText), "/////");
+                temp = FormatSelectorEntry(":computer_disk:", SelectDriveText);
+                SelectableItems.Add(new UserPromptItem(PromptType.SETTING, temp, "/////")); // new
             }
 
             if (ParentDirectory is not null)
             {
-                _selectionDict.Add(FormatSelectorEntry(":upwards_button: ", LevelUpText), ParentDirectory.FullName);
+                temp = FormatSelectorEntry(":upwards_button: ", LevelUpText);
+                SelectableItems.Add(new UserPromptItem(PromptType.SETTING, temp, ParentDirectory.FullName)); // new
             }
 
             if (!canIncludeFiles)
             {
-                _selectionDict.Add(FormatSelectorEntry(":ok_button: ", SelectActualText), WorkingDirectory);
+                temp = FormatSelectorEntry(":ok_button: ", SelectActualText);
+                SelectableItems.Add(new UserPromptItem(PromptType.SETTING, temp, WorkingDirectory)); // new
             }
 
             if (CanCreateFolder)
             {
-                _selectionDict.Add(FormatSelectorEntry(":plus: ", CreateNewText), "///new");
+                temp = FormatSelectorEntry(":plus: ", CreateNewText);
+                SelectableItems.Add(new UserPromptItem(PromptType.SETTING, temp, "///new")); // new
             }
             
             // add folders
@@ -110,7 +135,9 @@ namespace FileBrowser;
             // Old Code \/
             foreach (string directory in directoriesList)
             {
-                _selectionDict.Add(FormatItemEntry(":file_folder:", Path.GetFileName(directory)), directory);
+                temp = FormatItemEntry(":file_folder:", Path.GetFileName(directory));
+                SelectableItems.Add(new UserPromptItem(PromptType.FILE, Path.GetFileName(temp), directory)); // new
+                
             }
 
             // add files
@@ -118,44 +145,49 @@ namespace FileBrowser;
             {
                 foreach (string file in fileList) // too unclear. what is file?? 
                 {
-                    _selectionDict.Add(FormatItemEntry(":abacus:", Path.GetFileName(file)), file);
+                    temp = FormatItemEntry(":abacus:", Path.GetFileName(file));
+                    SelectableItems.Add(new UserPromptItem(PromptType.FILE, Path.GetFileName(temp), file)); // new
                 }
             }
             // Old Code /\
 
             // the problem is that this selection can either be a folder, file or setting. The need to be seperated into seperate objects
             // like setting.[setting], folder.getName, file.getName, maybe... At least seperate setting and folders/files
-            string userSelection = PromptSelectedFolder(_selectionDict, headerText);
+            //string userSelection = PromptSelectedFolder(_selectionDict, headerText);
+            UserPromptItem newSelection = PromptSelectedFolder(SelectableItems, headerText);
+            //string userSelection = newSelection.text;
+            //Console.WriteLine("User selection :" + userSelection);
 
-            _record = _selectionDict.Where(s => s.Key == userSelection).Select(s => s.Value).FirstOrDefault() 
-                            ?? throw new NullReferenceException("Selection is null");
+            //_record = _selectionDict.Where(s => s.Key == userSelection).Select(s => s.Value).FirstOrDefault() 
+            //                ?? throw new NullReferenceException("Selection is null");
 
-            if (_record == "/////")
+            if (newSelection.directory == "/////")
             {
                 _record = SelectDrive();
                 WorkingDirectory = _record;
             }
 
-            if (_record == "///new")
+            if (newSelection.directory == "///new")
             {
                 CreateNewFolder();
             }
 
-            if (_record == WorkingDirectory)
+            if (newSelection.directory == WorkingDirectory)
                 return WorkingDirectory;
 
-            if (Directory.Exists(_record))
+            if (Directory.Exists(newSelection.directory))
             {
-                WorkingDirectory = _record;
+                WorkingDirectory = newSelection.directory;
             }
 
             else 
             {
-                return _record;
+                return newSelection.directory;
             }; 
 
             // clear select dict. needs fixing
             _selectionDict = [];
+            SelectableItems = [];
         }
     }
     public string GetFilePath(string workingDirectory)
@@ -215,6 +247,27 @@ namespace FileBrowser;
                 .PageSize(PageSize)
                 .MoreChoicesText($"[grey]{MoreChoicesText}[/]")
                 .AddChoices(itemList.Keys)
+        );
+    }
+
+    private UserPromptItem PromptSelectedFolder(List<UserPromptItem> itemList, string selectorTitle)
+    {   
+        AnsiConsole.Clear();
+        AnsiConsole.WriteLine();
+        Rule rule = new Rule($"[b][green]{selectorTitle}[/][/]").Centered();
+        AnsiConsole.Write(rule);
+        AnsiConsole.WriteLine();
+        return AnsiConsole.Prompt(
+            new SelectionPrompt<UserPromptItem>()
+                .Title($"[green]{selectorTitle}:[/]")
+                .PageSize(PageSize)
+                .MoreChoicesText($"[grey]{MoreChoicesText}[/]")
+                .UseConverter(x =>
+                {
+                    if (x.promptType == PromptType.SETTING) { return x.text; }
+                    else { return Markup.Escape(x.text); }
+                })
+                .AddChoices(itemList)
         );
     }
 
