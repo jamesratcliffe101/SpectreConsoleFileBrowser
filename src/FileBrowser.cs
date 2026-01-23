@@ -16,6 +16,8 @@ namespace FileBrowser;
     public bool _canDisplayIcons { get; set; } = true;
     private bool _isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
     private Dictionary<string, string> _selectionDict = new ();
+    private string[] _selectableFilesAndFolder;
+    private string[] _selectableSettings;
     private string[]? _drives { get; set; }
     private string _record = "";
 
@@ -34,10 +36,19 @@ namespace FileBrowser;
     public string SelectDriveText { get; set; } = "Select Drive";
     public string SelectActualText { get; set; } = "Select Actual Folder";
 
+    public Action? testAction;
+    
+    private Dictionary<string, Action?> Settings;
+
     public Browser()
     {
         browserController = new BrowserController();
         browserUI = new BrowserUI();
+
+        Settings = new Dictionary<string, Action?>
+        {
+            {"testString", testAction}
+        };
     }
     private string GetPath(string startingPath, bool canIncludeFiles)
     {
@@ -46,14 +57,11 @@ namespace FileBrowser;
 
         while (true)
         {  
-            // get current directory
             Directory.SetCurrentDirectory(WorkingDirectory);
-            Console.WriteLine(WorkingDirectory);
-            Thread.Sleep(2000);
-
-            DirectoryInfo? ParentDirectory = new DirectoryInfo(WorkingDirectory).Parent;
+            DirectoryInfo? ParentDirectory = new DirectoryInfo(WorkingDirectory).Parent; // do we need the parent dir right now?
 
             string[] directoriesList =  Directory.GetDirectories(WorkingDirectory);
+            string[] fileList = Directory.GetFiles(WorkingDirectory);
             
             AnsiConsole.Clear();
             AnsiConsole.WriteLine();
@@ -96,31 +104,29 @@ namespace FileBrowser;
             {
                 _selectionDict.Add(FormatSelectorEntry(":plus: ", CreateNewText), "///new");
             }
+            
+            // add folders
 
-            foreach (string d in directoriesList)
+            // Old Code \/
+            foreach (string directory in directoriesList)
             {
-                int cut = (ParentDirectory is not null) ? 1 : 0;
-                string FolderName = d.Substring(WorkingDirectory.Length + cut);
-                string FolderPath = d;
-
-                _selectionDict.Add(FormatItemEntry(":file_folder:", FolderName), FolderPath);
+                _selectionDict.Add(FormatItemEntry(":file_folder:", Path.GetFileName(directory)), directory);
             }
 
+            // add files
             if (canIncludeFiles)
             {
-                var fileList = Directory.GetFiles(WorkingDirectory);
-                foreach (string file in fileList)
+                foreach (string file in fileList) // too unclear. what is file?? 
                 {
-                    string result = Path.GetFileName(file);
-
-                    _selectionDict.Add(FormatItemEntry(":abacus:", result), file);
+                    _selectionDict.Add(FormatItemEntry(":abacus:", Path.GetFileName(file)), file);
                 }
             }
+            // Old Code /\
 
-            // We got two sets of lists list files and list folders
-            string title = canIncludeFiles ? SelectFileText : SelectFolderText;
+            // the problem is that this selection can either be a folder, file or setting. The need to be seperated into seperate objects
+            // like setting.[setting], folder.getName, file.getName, maybe... At least seperate setting and folders/files
+            string userSelection = PromptSelectedFolder(_selectionDict, headerText);
 
-            string userSelection = PromptSelectedFolder(_selectionDict, title);
             _record = _selectionDict.Where(s => s.Key == userSelection).Select(s => s.Value).FirstOrDefault() 
                             ?? throw new NullReferenceException("Selection is null");
 
@@ -187,6 +193,11 @@ namespace FileBrowser;
         return _record;
     }
 
+    private string ChangeWorkingDirectory(string currentDirectory, string folder)
+    {
+        return currentDirectory + "/" + folder; // if the path goes deeper into the tree
+    }
+
 
     /// <summary>
     /// Draws the file browser content to the screen using SpectreConsole
@@ -205,14 +216,6 @@ namespace FileBrowser;
                 .MoreChoicesText($"[grey]{MoreChoicesText}[/]")
                 .AddChoices(itemList.Keys)
         );
-    }
-
-    private void ProcessSelection(string selectedItem)
-    {
-        _record = _selectionDict.Where(s => s.Key == selectedItem).Select(s => s.Value).FirstOrDefault() 
-                            ?? throw new NullReferenceException("Selection is null");
-
-
     }
 
 
