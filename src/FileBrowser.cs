@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 // make attributes priate instead of all being public
 // Can't select drive on linux currently
@@ -23,7 +24,7 @@ namespace FileBrowser;
 
     public int PageSize { get; set; } = 15;
     public bool CanCreateFolder { get; set; } = true;
-    public string ActualFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    public string WorkingDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     public string LevelUpText { get; set; } = "Go to upper level";
     public string ActualFolderText { get; set; } = "Selected Folder";
     public string MoreChoicesText { get; set; } = "Use arrows Up and Down to select";
@@ -40,16 +41,19 @@ namespace FileBrowser;
     }
     private string GetPath(string startingPath, bool canIncludeFiles)
     {
-        ActualFolder = startingPath;
+        WorkingDirectory = startingPath;
         string headerText = canIncludeFiles ? SelectFileText : SelectFolderText;
 
         while (true)
         {  
-            Directory.SetCurrentDirectory(ActualFolder);
-            DirectoryInfo? ParentDir = new DirectoryInfo(ActualFolder).Parent;
+            // get current directory
+            Directory.SetCurrentDirectory(WorkingDirectory);
+            Console.WriteLine(WorkingDirectory);
+            Thread.Sleep(2000);
 
-            string currentDirectory = Directory.GetCurrentDirectory();
-            string[] directoriesList =  Directory.GetDirectories(currentDirectory);
+            DirectoryInfo? ParentDirectory = new DirectoryInfo(WorkingDirectory).Parent;
+
+            string[] directoriesList =  Directory.GetDirectories(WorkingDirectory);
             
             AnsiConsole.Clear();
             AnsiConsole.WriteLine();
@@ -60,7 +64,7 @@ namespace FileBrowser;
             AnsiConsole.WriteLine();
             AnsiConsole.Markup($"[b][Yellow]{ActualFolderText}: [/][/]");
 
-            var DirectoryPath = new TextPath(ActualFolder.ToString());
+            var DirectoryPath = new TextPath(WorkingDirectory.ToString());
 
             DirectoryPath.RootStyle = new Style(foreground: Color.Green);
             DirectoryPath.SeparatorStyle = new Style(foreground: Color.Green);
@@ -78,14 +82,14 @@ namespace FileBrowser;
                 _selectionDict.Add(FormatSelectorEntry(":computer_disk:", SelectDriveText), "/////");
             }
 
-            if (ParentDir is not null)
+            if (ParentDirectory is not null)
             {
-                _selectionDict.Add(FormatSelectorEntry(":upwards_button: ", LevelUpText), ParentDir.FullName);
+                _selectionDict.Add(FormatSelectorEntry(":upwards_button: ", LevelUpText), ParentDirectory.FullName);
             }
 
             if (!canIncludeFiles)
             {
-                _selectionDict.Add(FormatSelectorEntry(":ok_button: ", SelectActualText), currentDirectory);
+                _selectionDict.Add(FormatSelectorEntry(":ok_button: ", SelectActualText), WorkingDirectory);
             }
 
             if (CanCreateFolder)
@@ -95,8 +99,8 @@ namespace FileBrowser;
 
             foreach (string d in directoriesList)
             {
-                int cut = (ParentDir is not null) ? 1 : 0;
-                string FolderName = d.Substring((ActualFolder.Length) + cut);
+                int cut = (ParentDirectory is not null) ? 1 : 0;
+                string FolderName = d.Substring(WorkingDirectory.Length + cut);
                 string FolderPath = d;
 
                 _selectionDict.Add(FormatItemEntry(":file_folder:", FolderName), FolderPath);
@@ -104,7 +108,7 @@ namespace FileBrowser;
 
             if (canIncludeFiles)
             {
-                var fileList = Directory.GetFiles(ActualFolder);
+                var fileList = Directory.GetFiles(WorkingDirectory);
                 foreach (string file in fileList)
                 {
                     string result = Path.GetFileName(file);
@@ -123,7 +127,7 @@ namespace FileBrowser;
             if (_record == "/////")
             {
                 _record = SelectDrive();
-                ActualFolder = _record;
+                WorkingDirectory = _record;
             }
 
             if (_record == "///new")
@@ -131,35 +135,38 @@ namespace FileBrowser;
                 CreateNewFolder();
             }
 
-            if (_record == currentDirectory)
-                return ActualFolder;
+            if (_record == WorkingDirectory)
+                return WorkingDirectory;
 
             if (Directory.Exists(_record))
             {
-                ActualFolder = _record;
+                WorkingDirectory = _record;
             }
 
             else 
             {
                 return _record;
             }; 
+
+            // clear select dict. needs fixing
+            _selectionDict = [];
         }
     }
-    public string GetFilePath(string ActualFolder)
+    public string GetFilePath(string workingDirectory)
     {
-        return GetPath(ActualFolder, true);
+        return GetPath(workingDirectory, true);
     }
     public string GetFilePath()
     {
-        return GetPath(ActualFolder, true);
+        return GetPath(WorkingDirectory, true);
     }
-    public  string GetFolderPath(string ActualFolder)
+    public  string GetFolderPath(string workingDirectory)
     {
-        return GetPath(ActualFolder, false);
+        return GetPath(workingDirectory, false);
     }
     public string GetFolderPath()
     {
-        return GetPath(ActualFolder, false);
+        return GetPath(WorkingDirectory, false);
     }
     private string SelectDrive()
     {
@@ -244,7 +251,7 @@ namespace FileBrowser;
             try
             {
                 Directory.CreateDirectory(folderName);
-                _record = Path.Combine(ActualFolder, folderName);
+                _record = Path.Combine(WorkingDirectory, folderName);
             }
             catch (Exception ex)
             {

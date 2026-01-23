@@ -1,8 +1,10 @@
 ﻿
+using Microsoft.VisualBasic.FileIO;
+
 FileBrowser.Browser myBrowser = new FileBrowser.Browser();
 
 Console.WriteLine("Start");
 
-myBrowser.GetFolderPath();
+string FilePath = myBrowser.GetFolderPath();
 
-Console.WriteLine("end");
+Console.WriteLine(FilePath);
