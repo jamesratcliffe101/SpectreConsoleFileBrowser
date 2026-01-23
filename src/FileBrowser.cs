@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 // make attributes priate instead of all being public
 // Can't select drive on linux currently
@@ -117,7 +116,7 @@ namespace FileBrowser;
             // We got two sets of lists list files and list folders
             string title = canIncludeFiles ? SelectFileText : SelectFolderText;
 
-            string userSelection = GetSelectedFolder(_selectionDict, title);
+            string userSelection = PromptSelectedFolder(_selectionDict, title);
             _record = _selectionDict.Where(s => s.Key == userSelection).Select(s => s.Value).FirstOrDefault() 
                             ?? throw new NullReferenceException("Selection is null");
 
@@ -137,7 +136,7 @@ namespace FileBrowser;
 
             if (Directory.Exists(_record))
             {
-                ActualFolder = _record; // How is this able to fail?
+                ActualFolder = _record;
             }
 
             else 
@@ -174,7 +173,7 @@ namespace FileBrowser;
                 listOfDrives.Add(drive, drive);
         }
         
-        string selected = GetSelectedFolder(listOfDrives, SelectDriveText);
+        string selected = PromptSelectedFolder(listOfDrives, SelectDriveText);
         // record returns the selected drive?
         _record = listOfDrives.Where(s => s.Key == selected).Select(s => s.Value).FirstOrDefault()
                         ?? throw new NullReferenceException("Selection is null");
@@ -185,7 +184,7 @@ namespace FileBrowser;
     /// <summary>
     /// Draws the file browser content to the screen using SpectreConsole
     /// </summary>
-    private string GetSelectedFolder(Dictionary<string, string> itemList, string selectorTitle)
+    private string PromptSelectedFolder(Dictionary<string, string> itemList, string selectorTitle)
     {   
         AnsiConsole.Clear();
         AnsiConsole.WriteLine();
